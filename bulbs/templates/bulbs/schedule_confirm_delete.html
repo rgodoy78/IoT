@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Eliminar programación{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Eliminar programación</h2>
+    <p>¿Confirmás que querés eliminar esta programación de <strong>{{ object.bulb.name }}</strong>? Esta acción no se puede deshacer.</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Eliminar</button>
+        <a href="{% url 'bulbs:bulb_detail' object.bulb.pk %}" class="btn btn-link">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

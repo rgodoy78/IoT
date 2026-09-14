@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Editar ampolleta{% else %}Nueva ampolleta{% endif %}{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>{% if object %}Editar ampolleta{% else %}Nueva ampolleta{% endif %}</h2>
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+            <p>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="helptext">{{ field.help_text }}</div>{% endif %}
+                {% if field.errors %}
+                    <ul class="errorlist">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </p>
+        {% endfor %}
+        <button type="submit" class="btn">Guardar</button>
+        <a href="{% url 'bulbs:bulb_list' %}" class="btn btn-link">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

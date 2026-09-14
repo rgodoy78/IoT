@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block title %}{{ bulb.name }}{% endblock %}
+{% block content %}
+<div class="header-row">
+    <div>
+        <h2><span class="status-dot {% if online %}online{% else %}offline{% endif %}" id="status-dot"></span>{{ bulb.name }}</h2>
+        <p>
+            {{ bulb.ip_address }} · Device ID: {{ bulb.device_id }}
+            ·
+            <strong id="power-status-text">
+                {% if not online %}Sin conexión{% elif state.on %}Encendida{% else %}Apagada{% endif %}
+            </strong>
+        </p>
+    </div>
+    <div class="actions">
+        <a href="{% url 'bulbs:bulb_list' %}">Volver</a>
+        {% if user.is_staff %}
+        <a href="{% url 'bulbs:bulb_edit' bulb.pk %}">Editar</a>
+        <a href="{% url 'bulbs:bulb_delete' bulb.pk %}">Eliminar</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if not online %}
+<div class="card offline-notice" id="offline-notice">
+    <strong>Sin conexión.</strong>
+    <p>{{ error }}</p>
+</div>
+{% endif %}
+
+<div class="card" id="control-panel">
+    <div class="control-group">
+        <div class="control-row">
+            <span class="control-label">Encendido</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="power-toggle" {% if state.on %}checked{% endif %} {% if not online %}disabled{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label>Brillo <span class="range-value" id="brightness-value">{{ state.brightness_pct|default:50 }}%</span></label>
+        <input type="range" id="brightness-slider" min="1" max="100" value="{{ state.brightness_pct|default:50 }}" {% if not online %}disabled{% endif %}>
+    </div>
+
+    <div class="control-group">
+        <label>Temperatura de color (cálido / frío) <span class="range-value" id="colortemp-value">{{ state.colortemp_pct|default:50 }}%</span></label>
+        <input type="range" id="colortemp-slider" min="0" max="100" value="{{ state.colortemp_pct|default:50 }}" {% if not online %}disabled{% endif %}>
+    </div>
+
+    <div class="control-group">
+        <label>Color</label>
+        <input type="color" id="color-picker" value="{{ state.color_hex|default:'#ffffff' }}" {% if not online %}disabled{% endif %}>
+    </div>
+</div>
+
+{% if online %}
+<details class="raw-status">
+    <summary>Ver estado técnico (dps)</summary>
+    <pre>{{ status }}</pre>
+</details>
+{% endif %}
+
+<div class="header-row" style="margin-top:2rem;">
+    <h2 style="font-size:1.15rem;">Programaciones de color</h2>
+    {% if user.is_staff %}
+    <a href="{% url 'bulbs:schedule_create' bulb.pk %}" class="btn">+ Nueva programación</a>
+    {% endif %}
+</div>
+
+{% if schedules %}
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Días</th>
+                <th>Horario</th>
+                <th>Colores</th>
+                <th>Intervalo</th>
+                <th>Semáforo</th>
+                <th>Estado</th>
+                {% if user.is_staff %}<th>Acciones</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for schedule in schedules %}
+            <tr>
+                <td>{{ schedule.name|default:"—" }}</td>
+                <td>{{ schedule.days_display }}</td>
+                <td>{{ schedule.start_time|time:"H:i" }} – {{ schedule.end_time|time:"H:i" }}</td>
+                <td>
+                    <span class="color-swatch" style="background:{{ schedule.color_a }};"></span>
+                    <span class="color-swatch" style="background:{{ schedule.color_b }};"></span>
+                </td>
+                <td>{{ schedule.min_interval_minutes }}–{{ schedule.max_interval_minutes }} min</td>
+                <td>
+                    <span class="schedule-signal" id="schedule-signal-{{ schedule.pk }}"
+                          style="background: {% if schedule.in_window and schedule.last_color == 'a' %}{{ schedule.color_a }}{% elif schedule.in_window and schedule.last_color == 'b' %}{{ schedule.color_b }}{% else %}var(--border){% endif %};"></span>
+                    <span id="schedule-signal-text-{{ schedule.pk }}">
+                        {% if schedule.in_window and schedule.last_color == 'a' %}Color A
+                        {% elif schedule.in_window and schedule.last_color == 'b' %}Color B
+                        {% else %}Inactivo{% endif %}
+                    </span>
+                </td>
+                <td>
+                    {% if schedule.is_active %}
+                        <span class="badge badge-active">Activo</span>
+                    {% else %}
+                        <span class="badge badge-inactive">Inactivo</span>
+                    {% endif %}
+                </td>
+                {% if user.is_staff %}
+                <td class="actions">
+                    <a href="{% url 'bulbs:schedule_edit' schedule.pk %}">Editar</a>
+                    <a href="{% url 'bulbs:schedule_delete' schedule.pk %}">Eliminar</a>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">No hay programaciones para esta ampolleta todavía.</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const controlUrl = "{% url 'bulbs:bulb_control' bulb.pk %}";
+    const statusUrl = "{% url 'bulbs:bulb_status' bulb.pk %}";
+    const scheduleStatusUrl = "{% url 'bulbs:schedule_status' bulb.pk %}";
+    const POLL_INTERVAL_MS = 7000;
+    const POLL_SUPPRESS_MS = 2500;
+    let suppressPollUntil = 0;
+    let pollInFlight = false;
+
+    const powerToggle = document.getElementById('power-toggle');
+    const powerStatusText = document.getElementById('power-status-text');
+    const brightnessSlider = document.getElementById('brightness-slider');
+    const brightnessValue = document.getElementById('brightness-value');
+    const colortempSlider = document.getElementById('colortemp-slider');
+    const colortempValue = document.getElementById('colortemp-value');
+    const colorPicker = document.getElementById('color-picker');
+    const statusDot = document.getElementById('status-dot');
+    const controls = [powerToggle, brightnessSlider, colortempSlider, colorPicker];
+
+    function debounce(fn, delay) {
+        let timer;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn(...args), delay);
+        };
+    }
+
+    function setPowerText(isOn) {
+        if (powerStatusText) powerStatusText.textContent = isOn ? 'Encendida' : 'Apagada';
+    }
+
+    function setOfflineNotice(message) {
+        let notice = document.getElementById('offline-notice');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'offline-notice';
+            notice.className = 'card offline-notice';
+            notice.innerHTML = '<strong>Sin conexión.</strong><p></p>';
+            const panel = document.getElementById('control-panel');
+            panel.parentNode.insertBefore(notice, panel);
+        }
+        notice.querySelector('p').textContent = message || '';
+    }
+
+    function clearOfflineNotice() {
+        const notice = document.getElementById('offline-notice');
+        if (notice) notice.remove();
+    }
+
+    function markOffline(message) {
+        if (statusDot) { statusDot.classList.remove('online'); statusDot.classList.add('offline'); }
+        if (powerStatusText) powerStatusText.textContent = 'Sin conexión';
+        controls.forEach((el) => { if (el) el.disabled = true; });
+        setOfflineNotice(message);
+        showToast(message || 'Se perdió la conexión con la ampolleta.', 'error');
+    }
+
+    function applyState(data) {
+        if (!data.online) {
+            markOffline(data.error);
+            return;
+        }
+        if (statusDot) { statusDot.classList.add('online'); statusDot.classList.remove('offline'); }
+        clearOfflineNotice();
+        controls.forEach((el) => { if (el) el.disabled = false; });
+
+        if (document.activeElement !== powerToggle) {
+            powerToggle.checked = data.state.on;
+            setPowerText(data.state.on);
+        }
+        if (document.activeElement !== brightnessSlider) {
+            brightnessSlider.value = data.state.brightness_pct;
+            brightnessValue.textContent = data.state.brightness_pct + '%';
+        }
+        if (document.activeElement !== colortempSlider) {
+            colortempSlider.value = data.state.colortemp_pct;
+            colortempValue.textContent = data.state.colortemp_pct + '%';
+        }
+        if (document.activeElement !== colorPicker) {
+            colorPicker.value = data.state.color_hex;
+        }
+    }
+
+    function pollStatus() {
+        if (pollInFlight || Date.now() < suppressPollUntil) return;
+        pollInFlight = true;
+        fetch(statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then((resp) => resp.json())
+            .then(applyState)
+            .catch(() => {})
+            .finally(() => { pollInFlight = false; });
+    }
+
+    setInterval(pollStatus, POLL_INTERVAL_MS);
+
+    function pollScheduleStatus() {
+        fetch(scheduleStatusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then((resp) => resp.json())
+            .then((data) => {
+                data.schedules.forEach((schedule) => {
+                    const dot = document.getElementById('schedule-signal-' + schedule.id);
+                    const text = document.getElementById('schedule-signal-text-' + schedule.id);
+                    if (dot) dot.style.background = schedule.hex || 'var(--border)';
+                    if (text) {
+                        text.textContent = schedule.active && schedule.color
+                            ? (schedule.color === 'a' ? 'Color A' : 'Color B')
+                            : 'Inactivo';
+                    }
+                });
+            })
+            .catch(() => {});
+    }
+
+    if (document.getElementById('control-panel') && document.querySelector('[id^="schedule-signal-"]')) {
+        setInterval(pollScheduleStatus, POLL_INTERVAL_MS);
+    }
+
+    // Power toggle
+    if (powerToggle) {
+        powerToggle.addEventListener('change', () => {
+            const isOn = powerToggle.checked;
+            setPowerText(isOn);
+            suppressPollUntil = Date.now() + POLL_SUPPRESS_MS;
+            postAction(controlUrl, { action: isOn ? 'on' : 'off' }).then(({ ok, payload }) => {
+                if (!ok) {
+                    powerToggle.checked = !isOn;
+                    markOffline(payload.error);
+                }
+            });
+        });
+    }
+
+    // Brightness slider
+    if (brightnessSlider) {
+        const sendBrightness = debounce((value) => {
+            postAction(controlUrl, { action: 'brightness', value }).then(({ ok, payload }) => {
+                if (!ok) markOffline(payload.error);
+            });
+        }, 120);
+        brightnessSlider.addEventListener('input', () => {
+            suppressPollUntil = Date.now() + POLL_SUPPRESS_MS;
+            brightnessValue.textContent = brightnessSlider.value + '%';
+            sendBrightness(brightnessSlider.value);
+        });
+    }
+
+    // Color temperature slider
+    if (colortempSlider) {
+        const sendColortemp = debounce((value) => {
+            postAction(controlUrl, { action: 'colortemp', value }).then(({ ok, payload }) => {
+                if (!ok) markOffline(payload.error);
+            });
+        }, 120);
+        colortempSlider.addEventListener('input', () => {
+            suppressPollUntil = Date.now() + POLL_SUPPRESS_MS;
+            colortempValue.textContent = colortempSlider.value + '%';
+            sendColortemp(colortempSlider.value);
+        });
+    }
+
+    // Color picker
+    if (colorPicker) {
+        const sendColor = debounce((value) => {
+            postAction(controlUrl, { action: 'color', value }).then(({ ok, payload }) => {
+                if (!ok) markOffline(payload.error);
+            });
+        }, 120);
+        colorPicker.addEventListener('input', () => {
+            suppressPollUntil = Date.now() + POLL_SUPPRESS_MS;
+            sendColor(colorPicker.value);
+        });
+    }
+})();
+</script>
+{% endblock %}

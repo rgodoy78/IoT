@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Editar programación{% else %}Nueva programación{% endif %}{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>{% if object %}Editar programación{% else %}Nueva programación{% endif %}</h2>
+    <p class="helptext" style="margin-bottom:1.25rem;">Ampolleta: <strong>{{ bulb.name }}</strong></p>
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+            <p>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {% if field.name == "days_of_week" %}
+                    <div class="day-checkboxes">{{ field }}</div>
+                {% else %}
+                    {{ field }}
+                {% endif %}
+                {% if field.help_text %}<div class="helptext">{{ field.help_text }}</div>{% endif %}
+                {% if field.errors %}
+                    <ul class="errorlist">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </p>
+        {% endfor %}
+        <button type="submit" class="btn">Guardar</button>
+        <a href="{% url 'bulbs:bulb_detail' bulb.pk %}" class="btn btn-link">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.sqlite3
+.env
+staticfiles/
+media/
+.venv/
+venv/
+env/
+*.log
+devices.json
+tinytuya.json
+snapshot.json

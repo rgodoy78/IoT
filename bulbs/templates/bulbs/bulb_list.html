@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Ampolletas{% endblock %}
+{% block content %}
+<div class="header-row">
+    <div>
+        <h2>Ampolletas</h2>
+        <p>Encendé, apagá y ajustá tus ampolletas DAIRU conectadas por Tuya.</p>
+    </div>
+    {% if user.is_staff %}
+    <div class="actions">
+        <a href="{% url 'bulbs:bulb_import' %}" class="btn btn-link">Importar devices.json</a>
+        <a href="{% url 'bulbs:bulb_create' %}" class="btn">+ Nueva ampolleta</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="bulb-grid">
+    {% for bulb in bulbs %}
+    <a href="{% url 'bulbs:bulb_detail' bulb.pk %}" class="card bulb-card">
+        <h3>{{ bulb.name }}</h3>
+        <p class="bulb-ip">{{ bulb.ip_address|default:"Sin IP configurada" }}</p>
+        <span class="badge {% if bulb.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+            {% if bulb.is_active %}Activa{% else %}Inactiva{% endif %}
+        </span>
+    </a>
+    {% empty %}
+    <div class="card">No hay ampolletas cargadas todavía.</div>
+    {% endfor %}
+</div>
+{% endblock %}

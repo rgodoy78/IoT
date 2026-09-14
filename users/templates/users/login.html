@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Ingresar{% endblock %}
+{% block content %}
+<div class="login-wrapper card">
+    <div class="login-brand">
+        <span class="logo-mark">IoT</span>
+        <div>
+            <h2>Bienvenido</h2>
+            <span>Ingresá con tu usuario y clave</span>
+        </div>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <ul class="errorlist">
+                {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+        {% endif %}
+        {% for field in form %}
+            <p>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <ul class="errorlist">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </p>
+        {% endfor %}
+        <button type="submit" class="btn" style="width: 100%; justify-content: center;">Ingresar</button>
+    </form>
+</div>
+{% endblock %}

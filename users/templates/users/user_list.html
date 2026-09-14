@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Usuarios{% endblock %}
+{% block content %}
+<div class="header-row">
+    <div>
+        <h2>Usuarios</h2>
+        <p>Gestioná las cuentas que pueden acceder al sistema.</p>
+    </div>
+    <a href="{% url 'users:user_create' %}" class="btn">+ Nuevo usuario</a>
+</div>
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Usuario</th>
+                <th>Email</th>
+                <th>Nombre</th>
+                <th>Estado</th>
+                <th>Rol</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.username }}</td>
+                <td>{{ u.email }}</td>
+                <td>{{ u.first_name }} {{ u.last_name }}</td>
+                <td>
+                    {% if u.is_active %}
+                        <span class="badge badge-active">Activo</span>
+                    {% else %}
+                        <span class="badge badge-inactive">Inactivo</span>
+                    {% endif %}
+                </td>
+                <td>{% if u.is_staff %}Administrador{% else %}Usuario{% endif %}</td>
+                <td class="actions">
+                    <a href="{% url 'users:user_edit' u.pk %}">Editar</a>
+                    <a href="{% url 'users:user_delete' u.pk %}">Eliminar</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No hay usuarios cargados.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
