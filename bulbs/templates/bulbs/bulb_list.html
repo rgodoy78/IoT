@@ -19,12 +19,58 @@
     <a href="{% url 'bulbs:bulb_detail' bulb.pk %}" class="card bulb-card">
         <h3>{{ bulb.name }}</h3>
         <p class="bulb-ip">{{ bulb.ip_address|default:"Sin IP configurada" }}</p>
-        <span class="badge {% if bulb.is_active %}badge-active{% else %}badge-inactive{% endif %}">
-            {% if bulb.is_active %}Activa{% else %}Inactiva{% endif %}
-        </span>
+        <div class="bulb-card-footer">
+            <span class="badge {% if bulb.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                {% if bulb.is_active %}Activa{% else %}Inactiva{% endif %}
+            </span>
+            <span class="color-swatch bulb-color-swatch" id="bulb-color-{{ bulb.pk }}" title="Consultando color…"></span>
+        </div>
     </a>
     {% empty %}
     <div class="card">No hay ampolletas cargadas todavía.</div>
     {% endfor %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const statusUrlTemplate = "{% url 'bulbs:bulb_status' 0 %}";
+    const POLL_INTERVAL_MS = 7000;
+    const swatches = document.querySelectorAll('[id^="bulb-color-"]');
+    let pollInFlight = false;
+
+    function refreshSwatch(el) {
+        const pk = el.id.replace('bulb-color-', '');
+        const url = statusUrlTemplate.replace('/0/', '/' + pk + '/');
+        return fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then((resp) => resp.json())
+            .then((data) => {
+                if (data.online && data.state) {
+                    el.style.background = data.state.color_hex;
+                    el.style.opacity = data.state.on ? '1' : '0.35';
+                    el.title = data.state.on
+                        ? `Color actual: ${data.state.color_hex}`
+                        : `Apagada (último color: ${data.state.color_hex})`;
+                } else {
+                    el.style.opacity = '1';
+                    el.style.background = 'var(--border)';
+                    el.title = 'Sin conexión';
+                }
+            })
+            .catch(() => { el.title = 'Sin conexión'; });
+    }
+
+    function pollAll() {
+        if (pollInFlight) return;
+        pollInFlight = true;
+        Promise.all(Array.from(swatches, refreshSwatch)).finally(() => { pollInFlight = false; });
+    }
+
+    if (swatches.length) {
+        pollAll();
+        setInterval(pollAll, POLL_INTERVAL_MS);
+    }
+})();
+</script>
 {% endblock %}
