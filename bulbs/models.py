@@ -40,7 +40,7 @@ class Bulb(models.Model):
 
 
 class ColorSchedule(models.Model):
-    bulb = models.ForeignKey(Bulb, on_delete=models.CASCADE, related_name="schedules", verbose_name="Ampolleta")
+    bulbs = models.ManyToManyField(Bulb, related_name="schedules", verbose_name="Ampolletas")
     name = models.CharField("Nombre", max_length=100, blank=True)
     days_of_week = models.CharField("Días", max_length=20, help_text="0=Lunes ... 6=Domingo, separados por coma")
     start_time = models.TimeField("Desde")
@@ -61,10 +61,10 @@ class ColorSchedule(models.Model):
     class Meta:
         verbose_name = "Programación de color"
         verbose_name_plural = "Programaciones de color"
-        ordering = ["bulb__name", "start_time"]
+        ordering = ["start_time"]
 
     def __str__(self):
-        return self.name or f"{self.bulb.name} {self.start_time}-{self.end_time}"
+        return self.name or f"Programación {self.start_time}-{self.end_time}"
 
     def day_list(self):
         return [int(x) for x in self.days_of_week.split(",") if x != ""]
@@ -72,3 +72,6 @@ class ColorSchedule(models.Model):
     def days_display(self):
         names = dict(DAY_CHOICES)
         return ", ".join(names[d] for d in self.day_list())
+
+    def bulbs_display(self):
+        return ", ".join(self.bulbs.values_list("name", flat=True))

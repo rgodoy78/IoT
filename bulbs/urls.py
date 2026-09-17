@@ -14,7 +14,9 @@ urlpatterns = [
     path("<int:pk>/control/", views.BulbControlView.as_view(), name="bulb_control"),
     path("<int:pk>/estado/", views.BulbStatusView.as_view(), name="bulb_status"),
     path("<int:bulb_pk>/programaciones/estado/", views.ScheduleStatusView.as_view(), name="schedule_status"),
-    path("<int:bulb_pk>/programaciones/nueva/", views.ScheduleCreateView.as_view(), name="schedule_create"),
+    path("<int:bulb_pk>/programaciones/nueva/", views.ScheduleCreateView.as_view(), name="schedule_create_for_bulb"),
+    path("programaciones/", views.ScheduleListView.as_view(), name="schedule_list"),
+    path("programaciones/nueva/", views.ScheduleCreateView.as_view(), name="schedule_create"),
     path("programaciones/<int:pk>/editar/", views.ScheduleUpdateView.as_view(), name="schedule_edit"),
     path("programaciones/<int:pk>/eliminar/", views.ScheduleDeleteView.as_view(), name="schedule_delete"),
 ]

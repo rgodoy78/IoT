@@ -34,15 +34,23 @@ def _is_in_window(schedule, now):
     return False
 
 
+def _apply_to_bulbs(schedule, action):
+    for bulb in schedule.bulbs.all():
+        try:
+            action(bulb)
+        except services.BulbConnectionError as exc:
+            logger.warning("Programación %s - ampolleta %s: %s", schedule.pk, bulb.pk, exc)
+
+
 def run_tick():
     close_old_connections()
     now = timezone.localtime()
-    for schedule in ColorSchedule.objects.filter(is_active=True).select_related("bulb"):
+    for schedule in ColorSchedule.objects.filter(is_active=True).prefetch_related("bulbs"):
         try:
             active = _is_in_window(schedule, now)
             if active and not schedule.in_window:
-                services.turn_on(schedule.bulb)
-                services.set_color(schedule.bulb, *_hex_to_rgb(schedule.color_a))
+                _apply_to_bulbs(schedule, lambda bulb: services.turn_on(bulb))
+                _apply_to_bulbs(schedule, lambda bulb: services.set_color(bulb, *_hex_to_rgb(schedule.color_a)))
                 schedule.last_color = "a"
                 schedule.next_run_at = _next_interval(schedule, now)
                 schedule.in_window = True
@@ -50,16 +58,16 @@ def run_tick():
             elif active and schedule.next_run_at and now >= schedule.next_run_at:
                 next_color = "b" if schedule.last_color == "a" else "a"
                 hex_color = schedule.color_b if next_color == "b" else schedule.color_a
-                services.set_color(schedule.bulb, *_hex_to_rgb(hex_color))
+                _apply_to_bulbs(schedule, lambda bulb: services.set_color(bulb, *_hex_to_rgb(hex_color)))
                 schedule.last_color = next_color
                 schedule.next_run_at = _next_interval(schedule, now)
                 schedule.save(update_fields=["last_color", "next_run_at"])
             elif not active and schedule.in_window:
-                services.turn_off(schedule.bulb)
+                _apply_to_bulbs(schedule, lambda bulb: services.turn_off(bulb))
                 schedule.in_window = False
                 schedule.next_run_at = None
                 schedule.last_color = None
                 schedule.save(update_fields=["in_window", "next_run_at", "last_color"])
-        except services.BulbConnectionError as exc:
-            logger.warning("Programación %s: %s", schedule.pk, exc)
+        except Exception:
+            logger.exception("Error procesando la programación %s", schedule.pk)
     close_old_connections()

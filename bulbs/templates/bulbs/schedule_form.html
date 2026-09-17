@@ -3,13 +3,13 @@
 {% block content %}
 <div class="card">
     <h2>{% if object %}Editar programación{% else %}Nueva programación{% endif %}</h2>
-    <p class="helptext" style="margin-bottom:1.25rem;">Ampolleta: <strong>{{ bulb.name }}</strong></p>
+    <p class="helptext" style="margin-bottom:1.25rem;">Una programación puede aplicarse a una o varias ampolletas a la vez.</p>
     <form method="post">
         {% csrf_token %}
         {% for field in form %}
             <p>
                 <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {% if field.name == "days_of_week" %}
+                {% if field.name == "days_of_week" or field.name == "bulbs" %}
                     <div class="day-checkboxes">{{ field }}</div>
                 {% else %}
                     {{ field }}
@@ -21,7 +21,7 @@
             </p>
         {% endfor %}
         <button type="submit" class="btn">Guardar</button>
-        <a href="{% url 'bulbs:bulb_detail' bulb.pk %}" class="btn btn-link">Cancelar</a>
+        <a href="{% url 'bulbs:schedule_list' %}" class="btn btn-link">Cancelar</a>
     </form>
 </div>
 {% endblock %}

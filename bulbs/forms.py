@@ -41,11 +41,17 @@ class ColorScheduleForm(forms.ModelForm):
         choices=DAY_CHOICES,
         widget=forms.CheckboxSelectMultiple,
     )
+    bulbs = forms.ModelMultipleChoiceField(
+        label="Ampolletas",
+        queryset=Bulb.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Seleccioná una o varias ampolletas para aplicarles esta programación.",
+    )
 
     class Meta:
         model = ColorSchedule
         fields = [
-            "name", "days_of_week", "start_time", "end_time",
+            "name", "bulbs", "days_of_week", "start_time", "end_time",
             "color_a", "color_b", "min_interval_minutes", "max_interval_minutes", "is_active",
         ]
         widgets = {
@@ -69,6 +75,7 @@ class ColorScheduleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.instance.pk:
             self.initial["days_of_week"] = [str(d) for d in self.instance.day_list()]
+            self.initial["bulbs"] = list(self.instance.bulbs.values_list("pk", flat=True))
 
     def clean_days_of_week(self):
         days = self.cleaned_data.get("days_of_week") or []

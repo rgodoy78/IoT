@@ -383,6 +383,9 @@
                 <a href="{% url 'bulbs:bulb_list' %}" class="{% if url_name == 'bulb_list' or url_name == 'bulb_create' or url_name == 'bulb_edit' or url_name == 'bulb_delete' or url_name == 'bulb_detail' %}active{% endif %}">
                     Ampolletas
                 </a>
+                <a href="{% url 'bulbs:schedule_list' %}" class="{% if url_name == 'schedule_list' or url_name == 'schedule_create' or url_name == 'schedule_create_for_bulb' or url_name == 'schedule_edit' or url_name == 'schedule_delete' %}active{% endif %}">
+                    Programaciones
+                </a>
                 {% endwith %}
             </nav>
             <div class="sidebar-footer">

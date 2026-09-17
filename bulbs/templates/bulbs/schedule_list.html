@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Programaciones{% endblock %}
+{% block content %}
+<div class="header-row">
+    <div>
+        <h2>Programaciones</h2>
+        <p>Creá una programación de color y aplicala a una o varias ampolletas a la vez.</p>
+    </div>
+    {% if user.is_staff %}
+    <div class="actions">
+        <a href="{% url 'bulbs:schedule_create' %}" class="btn">+ Nueva programación</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if schedules %}
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Ampolletas</th>
+                <th>Días</th>
+                <th>Horario</th>
+                <th>Colores</th>
+                <th>Intervalo</th>
+                <th>Estado</th>
+                {% if user.is_staff %}<th>Acciones</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for schedule in schedules %}
+            <tr>
+                <td>{{ schedule.name|default:"—" }}</td>
+                <td>{{ schedule.bulbs_display|default:"Sin ampolletas asignadas" }}</td>
+                <td>{{ schedule.days_display }}</td>
+                <td>{{ schedule.start_time|time:"H:i" }} – {{ schedule.end_time|time:"H:i" }}</td>
+                <td>
+                    <span class="color-swatch" style="background:{{ schedule.color_a }};"></span>
+                    <span class="color-swatch" style="background:{{ schedule.color_b }};"></span>
+                </td>
+                <td>{{ schedule.min_interval_minutes }}–{{ schedule.max_interval_minutes }} min</td>
+                <td>
+                    {% if schedule.is_active %}
+                        <span class="badge badge-active">Activo</span>
+                    {% else %}
+                        <span class="badge badge-inactive">Inactivo</span>
+                    {% endif %}
+                </td>
+                {% if user.is_staff %}
+                <td class="actions">
+                    <a href="{% url 'bulbs:schedule_edit' schedule.pk %}">Editar</a>
+                    <a href="{% url 'bulbs:schedule_delete' schedule.pk %}">Eliminar</a>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">No hay programaciones creadas todavía.</div>
+{% endif %}
+{% endblock %}

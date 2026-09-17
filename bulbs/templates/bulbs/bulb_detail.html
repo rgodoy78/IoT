@@ -64,9 +64,12 @@
 
 <div class="header-row" style="margin-top:2rem;">
     <h2 style="font-size:1.15rem;">Programaciones de color</h2>
-    {% if user.is_staff %}
-    <a href="{% url 'bulbs:schedule_create' bulb.pk %}" class="btn">+ Nueva programación</a>
-    {% endif %}
+    <div class="actions">
+        <a href="{% url 'bulbs:schedule_list' %}" class="btn btn-link">Ver todas</a>
+        {% if user.is_staff %}
+        <a href="{% url 'bulbs:schedule_create_for_bulb' bulb.pk %}" class="btn">+ Nueva programación</a>
+        {% endif %}
+    </div>
 </div>
 
 {% if schedules %}

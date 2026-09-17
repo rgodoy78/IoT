@@ -252,54 +252,49 @@ class BulbImportView(StaffRequiredMixin, View):
         return redirect("bulbs:bulb_list")
 
 
+class ScheduleListView(LoginRequiredMixin, ListView):
+    model = ColorSchedule
+    template_name = "bulbs/schedule_list.html"
+    context_object_name = "schedules"
+
+    def get_queryset(self):
+        return ColorSchedule.objects.prefetch_related("bulbs").all()
+
+
 class ScheduleCreateView(StaffRequiredMixin, CreateView):
     model = ColorSchedule
     form_class = ColorScheduleForm
     template_name = "bulbs/schedule_form.html"
+    success_url = reverse_lazy("bulbs:schedule_list")
 
-    def dispatch(self, request, *args, **kwargs):
-        self.bulb = get_object_or_404(Bulb, pk=kwargs["bulb_pk"])
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["bulb"] = self.bulb
-        return context
+    def get_initial(self):
+        initial = super().get_initial()
+        bulb_pk = self.kwargs.get("bulb_pk") or self.request.GET.get("bulb")
+        if bulb_pk:
+            initial["bulbs"] = [bulb_pk]
+        return initial
 
     def form_valid(self, form):
-        form.instance.bulb = self.bulb
         messages.success(self.request, "Programación creada correctamente.")
         return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse_lazy("bulbs:bulb_detail", kwargs={"pk": self.bulb.pk})
 
 
 class ScheduleUpdateView(StaffRequiredMixin, UpdateView):
     model = ColorSchedule
     form_class = ColorScheduleForm
     template_name = "bulbs/schedule_form.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["bulb"] = self.object.bulb
-        return context
+    success_url = reverse_lazy("bulbs:schedule_list")
 
     def form_valid(self, form):
         messages.success(self.request, "Programación actualizada correctamente.")
         return super().form_valid(form)
 
-    def get_success_url(self):
-        return reverse_lazy("bulbs:bulb_detail", kwargs={"pk": self.object.bulb.pk})
-
 
 class ScheduleDeleteView(StaffRequiredMixin, DeleteView):
     model = ColorSchedule
     template_name = "bulbs/schedule_confirm_delete.html"
+    success_url = reverse_lazy("bulbs:schedule_list")
 
     def form_valid(self, form):
         messages.success(self.request, "Programación eliminada correctamente.")
         return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse_lazy("bulbs:bulb_detail", kwargs={"pk": self.object.bulb.pk})
