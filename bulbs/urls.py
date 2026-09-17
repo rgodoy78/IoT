@@ -8,6 +8,7 @@ urlpatterns = [
     path("", views.BulbListView.as_view(), name="bulb_list"),
     path("nueva/", views.BulbCreateView.as_view(), name="bulb_create"),
     path("importar/", views.BulbImportView.as_view(), name="bulb_import"),
+    path("color/", views.BulkColorView.as_view(), name="bulb_bulk_color"),
     path("<int:pk>/", views.BulbDetailView.as_view(), name="bulb_detail"),
     path("<int:pk>/editar/", views.BulbUpdateView.as_view(), name="bulb_edit"),
     path("<int:pk>/eliminar/", views.BulbDeleteView.as_view(), name="bulb_delete"),

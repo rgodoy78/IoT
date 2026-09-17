@@ -13,7 +13,7 @@ from django.views.generic import CreateView, DeleteView, DetailView, ListView, U
 from users.views import StaffRequiredMixin
 
 from . import services
-from .forms import BulbForm, ColorScheduleForm
+from .forms import BulbForm, BulkColorForm, ColorScheduleForm
 from .models import Bulb, ColorSchedule
 
 DEFAULT_DEVICES_JSON_PATH = Path(settings.BASE_DIR) / "devices.json"
@@ -157,6 +157,82 @@ class BulbControlView(LoginRequiredMixin, View):
             return JsonResponse({"ok": True, "message": message})
         messages.success(request, message)
         return redirect("bulbs:bulb_detail", pk=bulb.pk)
+
+
+class BulkColorView(LoginRequiredMixin, View):
+    template_name = "bulbs/bulb_bulk_color.html"
+    SESSION_FORM_KEY = "bulbs_bulk_color_last"
+    SESSION_SWITCH_KEY = "bulbs_quick_switch_last"
+
+    def _context(self, request, form):
+        switch_state = request.session.get(self.SESSION_SWITCH_KEY) or {}
+        return {
+            "form": form,
+            "active_bulbs": Bulb.objects.filter(is_active=True),
+            "quick_switch_has_state": bool(switch_state),
+            "quick_switch_bulb_ids": set(switch_state.get("bulbs", [])),
+            "quick_switch_color_a": switch_state.get("color_a", "#ff0000"),
+            "quick_switch_color_b": switch_state.get("color_b", "#0000ff"),
+            "quick_switch_active": switch_state.get("active", "a"),
+        }
+
+    def get(self, request):
+        last = request.session.get(self.SESSION_FORM_KEY) or {}
+        form = BulkColorForm(initial={"bulbs": last.get("bulbs", []), "color": last.get("color", "#ffffff")})
+        return render(request, self.template_name, self._context(request, form))
+
+    def post(self, request):
+        form = BulkColorForm(request.POST)
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+        if not form.is_valid():
+            if is_ajax:
+                errors = " ".join(e for field_errors in form.errors.values() for e in field_errors)
+                return JsonResponse({"ok": False, "error": errors or "Datos inválidos."}, status=400)
+            return render(request, self.template_name, self._context(request, form))
+
+        bulbs = form.cleaned_data["bulbs"]
+        bulb_ids = [str(bulb.pk) for bulb in bulbs]
+        hex_color = form.cleaned_data["color"].lstrip("#")
+        r, g, b = (int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+
+        applied = []
+        failed = []
+        for bulb in bulbs:
+            try:
+                # set_color ya enciende la ampolleta (envía color + switch en un
+                # mismo comando), así que no hace falta un turn_on() previo: eso
+                # duplicaba la conexión al dispositivo y sumaba latencia.
+                services.set_color(bulb, r, g, b)
+                applied.append(bulb.name)
+            except services.BulbConnectionError as exc:
+                failed.append(f"{bulb.name}: {exc}")
+
+        success_msg = f"Color aplicado a: {', '.join(applied)}." if applied else None
+        error_msg = f"No se pudo aplicar el color a: {'; '.join(failed)}." if failed else None
+
+        if is_ajax:
+            # Viene del switch rápido: recordamos ambos colores, el lado activo
+            # y la selección de ampolletas de esa sección.
+            request.session[self.SESSION_SWITCH_KEY] = {
+                "bulbs": bulb_ids,
+                "color_a": request.POST.get("color_a", "#ff0000"),
+                "color_b": request.POST.get("color_b", "#0000ff"),
+                "active": request.POST.get("active", "a"),
+            }
+            if applied:
+                return JsonResponse({"ok": True, "message": success_msg, "warning": error_msg})
+            return JsonResponse({"ok": False, "error": error_msg or "No se seleccionó ninguna ampolleta."}, status=502)
+
+        # Viene del formulario "Aplicar color": recordamos selección y color.
+        request.session[self.SESSION_FORM_KEY] = {"bulbs": bulb_ids, "color": form.cleaned_data["color"]}
+
+        if success_msg:
+            messages.success(request, success_msg)
+        if error_msg:
+            messages.error(request, error_msg)
+
+        return redirect("bulbs:bulb_bulk_color")
 
 
 class BulbImportView(StaffRequiredMixin, View):

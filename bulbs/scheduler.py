@@ -49,7 +49,9 @@ def run_tick():
         try:
             active = _is_in_window(schedule, now)
             if active and not schedule.in_window:
-                _apply_to_bulbs(schedule, lambda bulb: services.turn_on(bulb))
+                # set_color ya enciende la ampolleta (color + switch en un mismo
+                # comando), así que evitamos un turn_on() previo que duplicaría
+                # la conexión al dispositivo.
                 _apply_to_bulbs(schedule, lambda bulb: services.set_color(bulb, *_hex_to_rgb(schedule.color_a)))
                 schedule.last_color = "a"
                 schedule.next_run_at = _next_interval(schedule, now)

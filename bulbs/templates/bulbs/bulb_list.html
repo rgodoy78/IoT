@@ -6,12 +6,13 @@
         <h2>Ampolletas</h2>
         <p>Encendé, apagá y ajustá tus ampolletas DAIRU conectadas por Tuya.</p>
     </div>
-    {% if user.is_staff %}
     <div class="actions">
+        <a href="{% url 'bulbs:bulb_bulk_color' %}" class="btn btn-link">Cambiar color</a>
+        {% if user.is_staff %}
         <a href="{% url 'bulbs:bulb_import' %}" class="btn btn-link">Importar devices.json</a>
         <a href="{% url 'bulbs:bulb_create' %}" class="btn">+ Nueva ampolleta</a>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 
 <div class="bulb-grid">

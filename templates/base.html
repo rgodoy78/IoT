@@ -195,6 +195,14 @@
         .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
         .toggle-switch input:disabled + .toggle-slider { opacity: 0.5; cursor: not-allowed; }
         .control-row { display: flex; justify-content: space-between; align-items: center; }
+
+        /* Quick two-color switch */
+        .quick-switch-row { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+        .quick-switch-color { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+        .quick-switch-color input[type=color] { width: 56px; height: 40px; }
+        .quick-switch-toggle { width: 64px; height: 34px; }
+        .quick-switch-toggle .toggle-slider::before { height: 28px; width: 28px; }
+        .quick-switch-toggle input:checked + .toggle-slider::before { transform: translateX(30px); }
         .control-row .control-label { font-weight: 600; font-size: 0.92rem; }
 
         /* Toast notifications */
@@ -384,6 +392,9 @@
                 </a>
                 <a href="{% url 'bulbs:bulb_list' %}" class="{% if url_name == 'bulb_list' or url_name == 'bulb_create' or url_name == 'bulb_edit' or url_name == 'bulb_delete' or url_name == 'bulb_detail' %}active{% endif %}">
                     Ampolletas
+                </a>
+                <a href="{% url 'bulbs:bulb_bulk_color' %}" class="{% if url_name == 'bulb_bulk_color' %}active{% endif %}">
+                    Cambiar color
                 </a>
                 <a href="{% url 'bulbs:schedule_list' %}" class="{% if url_name == 'schedule_list' or url_name == 'schedule_create' or url_name == 'schedule_create_for_bulb' or url_name == 'schedule_edit' or url_name == 'schedule_delete' %}active{% endif %}">
                     Programaciones

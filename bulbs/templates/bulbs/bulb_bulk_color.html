@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Cambiar color{% endblock %}
+{% block content %}
+<div class="header-row">
+    <div>
+        <h2>Cambiar color</h2>
+        <p>Aplicá un color a una o varias ampolletas al instante, sin crear una programación.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom:0.35rem;">Switch rápido entre dos colores</h3>
+    <p class="helptext" style="margin-bottom:1.1rem;">
+        Elegí las ampolletas y dos colores. Después, con un clic en el switch alternás entre uno y otro al instante.
+    </p>
+
+    <p>
+        <label>Ampolletas</label>
+        <div class="day-checkboxes">
+            {% for bulb in active_bulbs %}
+            <label style="display:flex;align-items:center;gap:0.4rem;font-weight:500;">
+                <input type="checkbox" name="quick_switch_bulbs" value="{{ bulb.pk }}"
+                    {% if quick_switch_has_state %}{% if bulb.pk|stringformat:"s" in quick_switch_bulb_ids %}checked{% endif %}{% else %}checked{% endif %}>
+                {{ bulb.name }}
+            </label>
+            {% empty %}
+            <span class="helptext">No hay ampolletas activas.</span>
+            {% endfor %}
+        </div>
+    </p>
+
+    <div class="quick-switch-row">
+        <div class="quick-switch-color">
+            <label for="quick-switch-color-a">Color A</label>
+            <input type="color" id="quick-switch-color-a" value="{{ quick_switch_color_a }}">
+        </div>
+
+        <label class="toggle-switch quick-switch-toggle">
+            <input type="checkbox" id="quick-switch-toggle" {% if quick_switch_active == "b" %}checked{% endif %}>
+            <span class="toggle-slider" id="quick-switch-slider"></span>
+        </label>
+
+        <div class="quick-switch-color">
+            <label for="quick-switch-color-b">Color B</label>
+            <input type="color" id="quick-switch-color-b" value="{{ quick_switch_color_b }}">
+        </div>
+    </div>
+    <p class="helptext" id="quick-switch-status" style="margin-top:0.75rem;">
+        Seleccionado: {% if quick_switch_active == "b" %}Color B{% else %}Color A{% endif %}
+    </p>
+</div>
+
+<div class="card" style="margin-top:1.5rem;">
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+            <p>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {% if field.name == "bulbs" %}
+                    <div class="day-checkboxes">{{ field }}</div>
+                {% else %}
+                    {{ field }}
+                {% endif %}
+                {% if field.help_text %}<div class="helptext">{{ field.help_text }}</div>{% endif %}
+                {% if field.errors %}
+                    <ul class="errorlist">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </p>
+        {% endfor %}
+        <button type="submit" class="btn">Aplicar color</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const bulkColorUrl = "{% url 'bulbs:bulb_bulk_color' %}";
+    const toggle = document.getElementById('quick-switch-toggle');
+    const slider = document.getElementById('quick-switch-slider');
+    const colorA = document.getElementById('quick-switch-color-a');
+    const colorB = document.getElementById('quick-switch-color-b');
+    const statusText = document.getElementById('quick-switch-status');
+
+    if (!toggle) return;
+
+    function updateTrack() {
+        slider.style.background = `linear-gradient(to right, ${colorA.value} 50%, ${colorB.value} 50%)`;
+    }
+    updateTrack();
+    colorA.addEventListener('input', updateTrack);
+    colorB.addEventListener('input', updateTrack);
+
+    function selectedBulbIds() {
+        return Array.from(document.querySelectorAll('input[name="quick_switch_bulbs"]:checked')).map((el) => el.value);
+    }
+
+    function applyQuickColor(hexColor, label, revertChecked, activeSide) {
+        const ids = selectedBulbIds();
+        if (!ids.length) {
+            showToast('Seleccioná al menos una ampolleta.', 'error');
+            toggle.checked = revertChecked;
+            return;
+        }
+        const body = new URLSearchParams();
+        ids.forEach((id) => body.append('bulbs', id));
+        body.append('color', hexColor);
+        body.append('color_a', colorA.value);
+        body.append('color_b', colorB.value);
+        body.append('active', activeSide);
+
+        fetch(bulkColorUrl, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body,
+        })
+            .then((resp) => resp.json().then((payload) => ({ ok: resp.ok, payload })))
+            .then(({ ok, payload }) => {
+                if (ok && payload.ok) {
+                    statusText.textContent = 'Seleccionado: ' + label;
+                    showToast(payload.warning || payload.message || 'Color aplicado.', payload.warning ? 'error' : 'success');
+                } else {
+                    showToast((payload && payload.error) || 'No se pudo aplicar el color.', 'error');
+                    toggle.checked = revertChecked;
+                }
+            })
+            .catch(() => {
+                showToast('No se pudo contactar al servidor.', 'error');
+                toggle.checked = revertChecked;
+            });
+    }
+
+    toggle.addEventListener('change', () => {
+        if (toggle.checked) {
+            applyQuickColor(colorB.value, 'Color B', false, 'b');
+        } else {
+            applyQuickColor(colorA.value, 'Color A', true, 'a');
+        }
+    });
+})();
+</script>
+{% endblock %}

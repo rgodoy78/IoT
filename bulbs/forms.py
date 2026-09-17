@@ -88,3 +88,17 @@ class ColorScheduleForm(forms.ModelForm):
         if min_minutes and max_minutes and min_minutes > max_minutes:
             raise forms.ValidationError("El intervalo mínimo no puede ser mayor al máximo.")
         return cleaned
+
+
+class BulkColorForm(forms.Form):
+    bulbs = forms.ModelMultipleChoiceField(
+        label="Ampolletas",
+        queryset=Bulb.objects.filter(is_active=True),
+        widget=forms.CheckboxSelectMultiple,
+    )
+    color = forms.CharField(
+        label="Color",
+        widget=forms.TextInput(attrs={"type": "color"}),
+        initial="#ffffff",
+        help_text="Se aplica y enciende la ampolleta en un solo comando (no hace falta encenderla aparte).",
+    )
